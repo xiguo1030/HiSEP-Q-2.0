@@ -5,14 +5,13 @@ module dram (
     input  logic        wea,
     input  logic        reset,
     input  logic [10:0] addra,
-    input  logic [63:0] dia,
-    output logic [63:0] doa
+    input  logic [31:0] dia, // CHANGED
+    output logic [31:0] doa  // CHANGED
 );
-
-    logic [63:0] DRAM [0:15]; // Depth 16 (2**4)
+    logic [31:0] DRAM [0:15]; // CHANGED
 
     initial begin
-        $readmemh("./init_data_bram.mem", DRAM);
+        $readmemh("./init_data_bram.mem", DRAM); // 确保数据初始化文件也是32bit宽
     end
 
     // Write Logic

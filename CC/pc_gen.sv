@@ -1,31 +1,30 @@
 module pc_gen (
     input  logic        clk,
     input  logic        reset,
-    input  logic        i_sel_pc,    // Branch/Jump flag
+    input  logic        i_sel_pc,
     input  logic        start_sig,
     input  logic        end_sig,
-    input  logic [63:0] i_pc_from_alu,
-    output logic [63:0] o_pc
+    input  logic [31:0] i_pc_from_alu, // 32-bit
+    output logic [31:0] o_pc           // 32-bit
 );
-    logic [63:0] next_pc;
+    logic [31:0] next_pc;
 
     // 1. 时序逻辑：更新 PC
-    always_ff @(negedge clk) begin // 保持你原设计的 negedge
+    always_ff @(negedge clk) begin 
         if (reset)          
             o_pc <= '0;
         else if (start_sig) 
             o_pc <= next_pc;
-        // else hold
     end
 
     // 2. 组合逻辑：计算 Next PC
     always_comb begin
         if (end_sig) begin
-            next_pc = o_pc; // 停止
+            next_pc = o_pc;
         end else if (i_sel_pc) begin
-            next_pc = i_pc_from_alu; // 跳转/分支 (ALU计算出的地址)
+            next_pc = i_pc_from_alu;
         end else begin
-            next_pc = o_pc + 64'd1; // 顺序执行 (PC+1)
+            next_pc = o_pc + 32'd1; // PC+1 (Word Addressed)
         end
     end
 endmodule

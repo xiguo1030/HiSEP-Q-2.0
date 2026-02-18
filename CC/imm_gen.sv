@@ -1,48 +1,44 @@
 `include "../parameter.v"
 
 module imm_gen (
-    input  logic [24:0] imm_src,
+    input  logic [31:0] instr,   // 32-bit Instruction
     input  logic [2:0]  imm_sel,
-    input  logic [63:0] i_regs,
-    output logic [63:0] imm_out
+    input  logic [31:0] i_regs,  // 32-bit Rs data
+    output logic [31:0] imm_out  // 32-bit Output
 );
-    // 定义内部信号
-    logic [63:0] imm_M, imm_BR, imm_LDI, imm_LDUI;
-    logic        sign_bit_st;
-    logic        sign_bit_ldi;
-    logic [9:0]  inst_m;
-    logic [19:0] inst_ldi;
-    logic [14:0] inst_ldui;
-    logic [20:0] inst_br_raw;
-    logic [16:0] inst_br_mixed;
 
-    // --- 关键修改：使用 assign 进行连续赋值 ---
-    assign sign_bit_st = imm_src[9];
-    assign sign_bit_ldi = imm_src[19];
+    logic [31:0] imm_i, imm_s, imm_br, imm_j, imm_ldi, imm_ldui, imm_qw;
     
-    assign inst_m      = imm_src[9:0];
-    assign inst_ldi    = imm_src[19:0];
-    assign inst_ldui   = imm_src[14:0];
-    assign inst_br_raw = imm_src[24:4];
+    // 1. I-Type (LD): Imm12 [31:20] -> Sign Ext 32
+    assign imm_i = {{20{instr[31]}}, instr[31:20]};
 
-    // 分类生成逻辑
-    assign imm_M    = {{54{sign_bit_st}}, inst_m};   // 符号扩展
-    assign imm_LDI  = {{44{sign_bit_ldi}}, inst_ldi};
-    
-    // LDUI: 拼接 imm15 和 寄存器低17位 (参考原逻辑)
-    assign imm_LDUI = {32'b0, inst_ldui, i_regs[16:0]}; 
+    // 2. S-Type (ST): Imm12 [31:25] | [11:7] -> Sign Ext 32
+    assign imm_s = {{20{instr[31]}}, instr[31:25], instr[11:7]};
 
-    // Branch Imm: 位拼接
-    assign inst_br_mixed = {inst_br_raw[12], 4'b0, inst_br_raw[11:0]};
-    assign imm_BR   = {{47{1'b0}}, inst_br_mixed};
+    // 3. BR (Custom): Imm20 [31:12] -> Sign Ext 32
+    assign imm_br = {{12{instr[31]}}, instr[31:12]};
 
-    // 输出选择 MUX
+    // 4. JUMP (Custom): Imm25 [31:7] -> Sign Ext 32
+    assign imm_j = {{7{instr[31]}}, instr[31:7]};
+
+    // 5. LDI: Imm20 [31:12] -> Sign Ext 32
+    assign imm_ldi = {{12{instr[31]}}, instr[31:12]};
+
+    // 6. LDUI: {Imm15 [31:17], Rs[16:0]} -> 32-bit
+    assign imm_ldui = {instr[31:17], i_regs[16:0]};
+
+    // 7. QWAIT: Imm20 [31:12] -> Zero Ext 32
+    assign imm_qw = {12'b0, instr[31:12]};
+
     always_comb begin
         case (imm_sel)
-            `IMM_M:    imm_out = imm_M;
-            `IMM_BR:   imm_out = imm_BR;
-            `IMM_LDI:  imm_out = imm_LDI;
-            `IMM_LDUI: imm_out = imm_LDUI;
+            `IMM_I:    imm_out = imm_i;
+            `IMM_S:    imm_out = imm_s;
+            `IMM_BR:   imm_out = imm_br;
+            `IMM_J:    imm_out = imm_j;
+            `IMM_LDI:  imm_out = imm_ldi;
+            `IMM_LDUI: imm_out = imm_ldui;
+            `IMM_QW:   imm_out = imm_qw;
             default:   imm_out = '0;
         endcase
     end
